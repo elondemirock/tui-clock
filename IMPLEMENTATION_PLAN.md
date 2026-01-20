@@ -7,6 +7,7 @@ A terminal-based clock application that displays the current time in Pacific Tim
 - Resizable TUI that adapts to terminal window size
 - Primary display: Large centered digital clock showing PT time (hh:mm)
 - Secondary display: Smaller text below showing ET time (PT + 3 hours)
+- Clean execution from fresh venv or via run script
 
 ## Technology Stack
 - **Language**: Python 3.12
@@ -60,6 +61,13 @@ A terminal-based clock application that displays the current time in Pacific Tim
 
 **Verification**: ✅ `pytest` passes (5 tests), `ruff check .` passes
 
+### TASK 7: Run Script [PRIORITY: HIGH] [STATUS: COMPLETE]
+- [x] Create run.sh script for one-command execution
+- [x] Auto-create venv if missing
+- [x] Auto-install dependencies if needed
+
+**Verification**: ✅ `./run.sh` launches the application from scratch
+
 ## Progress Log
 - Initial plan created
 - TASK 1 completed: Project structure with pyproject.toml, venv, dependencies installed
@@ -70,8 +78,14 @@ A terminal-based clock application that displays the current time in Pacific Tim
   - Auto-update every second
   - Responsive to terminal resize
 - TASK 6 completed: Tests added for digit rendering, ruff linting configured and passing
+- TASK 7 completed: Added run.sh script for one-command execution from scratch
 
 ## How to Run
+```bash
+./run.sh
+```
+
+Or manually:
 ```bash
 source .venv/bin/activate
 python3.12 -m tui_clock.main
