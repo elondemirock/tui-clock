@@ -1,0 +1,28 @@
+[project]
+name = "tui-clock"
+version = "0.1.0"
+description = "A terminal-based clock displaying PT and ET time"
+requires-python = ">=3.12"
+dependencies = [
+    "textual>=3.0.0",
+    "pytz>=2024.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.4.0",
+]
+
+[project.scripts]
+tui-clock = "tui_clock.main:main"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

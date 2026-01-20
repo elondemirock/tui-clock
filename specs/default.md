@@ -1,0 +1,3 @@
+- i want to build a tui clock that is re-sizeable as I drag the terminal size around.
+- i want it to simply display the time, as the main large center text in digital format, hh:mm for my timezone (PT)
+- i want it to then underneath have a much smaller sized text that tells me what hh+3 is so I can see what ET is.
