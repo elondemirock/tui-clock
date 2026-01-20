@@ -12,6 +12,11 @@ from tui_clock.digits import render_time_large
 PT_TIMEZONE = pytz.timezone("America/Los_Angeles")
 ET_TIMEZONE = pytz.timezone("America/New_York")
 
+# Blink configuration
+BLINK_MINUTES = (0, 30)  # Blink at :00 and :30
+BLINK_DURATION = 0.15  # Duration of each blink phase in seconds
+BLINK_COUNT = 3  # Number of blink cycles
+
 
 class ClockDisplay(Static):
     """Widget displaying the large ASCII art clock."""
@@ -44,6 +49,11 @@ class SecondaryDisplay(Static):
         self.update(f"ET: {time_str}")
 
 
+def should_blink(minute: int) -> bool:
+    """Check if the current minute should trigger a blink."""
+    return minute in BLINK_MINUTES
+
+
 class TuiClockApp(App):
     """A TUI clock application displaying PT and ET time."""
 
@@ -51,6 +61,18 @@ class TuiClockApp(App):
     Screen {
         align: center middle;
         background: $surface;
+    }
+
+    Screen.blink {
+        background: white;
+    }
+
+    Screen.blink ClockDisplay {
+        color: black;
+    }
+
+    Screen.blink SecondaryDisplay {
+        color: black;
     }
 
     #clock-container {
@@ -80,6 +102,42 @@ class TuiClockApp(App):
         ("q", "quit", "Quit"),
         ("escape", "quit", "Quit"),
     ]
+
+    def __init__(self) -> None:
+        """Initialize the app with blink tracking state."""
+        super().__init__()
+        self._last_blink_minute: int | None = None
+        self._blink_count = 0
+
+    def on_mount(self) -> None:
+        """Start the blink check timer when app mounts."""
+        self.set_interval(1.0, self._check_blink)
+
+    def _check_blink(self) -> None:
+        """Check if we should trigger a blink at the current time."""
+        now = datetime.now(PT_TIMEZONE)
+        current_minute = now.minute
+
+        if should_blink(current_minute) and self._last_blink_minute != current_minute:
+            self._last_blink_minute = current_minute
+            self._start_blink()
+
+    def _start_blink(self) -> None:
+        """Start the blink animation sequence."""
+        self._blink_count = 0
+        self._do_blink_on()
+
+    def _do_blink_on(self) -> None:
+        """Turn blink on (inverted colors)."""
+        self.screen.add_class("blink")
+        self.set_timer(BLINK_DURATION, self._do_blink_off)
+
+    def _do_blink_off(self) -> None:
+        """Turn blink off (normal colors)."""
+        self.screen.remove_class("blink")
+        self._blink_count += 1
+        if self._blink_count < BLINK_COUNT:
+            self.set_timer(BLINK_DURATION, self._do_blink_on)
 
     def compose(self) -> ComposeResult:
         """Compose the app layout."""

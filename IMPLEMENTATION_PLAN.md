@@ -8,6 +8,7 @@ A terminal-based clock application that displays the current time in Pacific Tim
 - Primary display: Large centered digital clock showing PT time (hh:mm)
 - Secondary display: Smaller text below showing ET time (PT + 3 hours)
 - Clean execution from fresh venv or via run script
+- Blink the terminal screen every 30 minutes
 
 ## Technology Stack
 - **Language**: Python 3.12
@@ -68,6 +69,13 @@ A terminal-based clock application that displays the current time in Pacific Tim
 
 **Verification**: ✅ `./run.sh` launches the application from scratch
 
+### TASK 8: 30-Minute Screen Blink [PRIORITY: HIGH] [STATUS: COMPLETE]
+- [x] Add timer to track 30-minute intervals
+- [x] Implement screen blink effect (brief color inversion or flash)
+- [x] Add unit tests for blink timing logic
+
+**Verification**: ✅ Running the app at :00 or :30 minute mark triggers a visible screen blink (3 quick flashes)
+
 ## Progress Log
 - Initial plan created
 - TASK 1 completed: Project structure with pyproject.toml, venv, dependencies installed
@@ -79,6 +87,10 @@ A terminal-based clock application that displays the current time in Pacific Tim
   - Responsive to terminal resize
 - TASK 6 completed: Tests added for digit rendering, ruff linting configured and passing
 - TASK 7 completed: Added run.sh script for one-command execution from scratch
+- TASK 8 completed: Added 30-minute screen blink feature:
+  - Blink triggers at :00 and :30 minute marks
+  - Screen flashes 3 times with color inversion (white bg, black text)
+  - Unit tests added for blink timing logic (4 new tests, 9 total passing)
 
 ## How to Run
 ```bash
