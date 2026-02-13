@@ -1,13 +1,18 @@
 """Main TUI clock application."""
 
+import json
 from datetime import datetime
+from pathlib import Path
 
 import pytz
 from textual.app import App, ComposeResult
-from textual.containers import Container, Vertical
+from textual.containers import Container, Horizontal, Vertical
+from textual.events import Click
 from textual.widgets import Static
 
 from tui_clock.digits import render_time_large
+
+WATER_STATS_FILE = Path(__file__).resolve().parent.parent / ".water_stats"
 
 PT_TIMEZONE = pytz.timezone("America/Los_Angeles")
 ET_TIMEZONE = pytz.timezone("America/New_York")
@@ -16,6 +21,20 @@ ET_TIMEZONE = pytz.timezone("America/New_York")
 BLINK_MINUTES = (0, 30)  # Blink at :00 and :30
 BLINK_DURATION = 0.15  # Duration of each blink phase in seconds
 BLINK_COUNT = 3  # Number of blink cycles
+
+# Water reminder configuration
+WATER_INTERVAL = 15  # Remind every 15 minutes
+WATER_START_HOUR = 8  # 8 AM ET
+WATER_END_HOUR = 18  # 6 PM ET
+WATER_BLINK_DURATION = 0.15
+WATER_BLINK_COUNT = 5
+
+
+class WaterCounter(Static):
+    """Widget displaying the water counter at the top left."""
+
+    def update_count(self, count: int) -> None:
+        self.update(f"\U0001f4a7 {count}")
 
 
 class ClockDisplay(Static):
@@ -34,8 +53,8 @@ class ClockDisplay(Static):
         self.update(ascii_time)
 
 
-class SecondaryDisplay(Static):
-    """Widget displaying the ET time in smaller text."""
+class ETDisplay(Static):
+    """Widget displaying the ET time."""
 
     def on_mount(self) -> None:
         """Start the ET time update timer when mounted."""
@@ -43,15 +62,46 @@ class SecondaryDisplay(Static):
         self.set_interval(1.0, self.update_time)
 
     def update_time(self) -> None:
-        """Update the secondary display with ET time."""
+        """Update with ET time."""
         now = datetime.now(ET_TIMEZONE)
         time_str = now.strftime("%H:%M")
         self.update(f"ET: {time_str}")
 
 
+def _load_water_stats() -> dict:
+    """Load water stats from disk. Resets today_count if it's a new day."""
+    today = datetime.now(ET_TIMEZONE).strftime("%Y-%m-%d")
+    default = {"today": today, "today_count": 0, "history": {}}
+    try:
+        data = json.loads(WATER_STATS_FILE.read_text())
+    except (FileNotFoundError, json.JSONDecodeError):
+        return default
+    if data.get("today") != today:
+        # New day — archive yesterday and reset
+        if data.get("today") and data.get("today_count", 0) > 0:
+            data.setdefault("history", {})[data["today"]] = data["today_count"]
+        data["today"] = today
+        data["today_count"] = 0
+        _save_water_stats(data)
+    return data
+
+
+def _save_water_stats(data: dict) -> None:
+    """Save water stats to disk."""
+    WATER_STATS_FILE.write_text(json.dumps(data, indent=2) + "\n")
+
+
 def should_blink(minute: int) -> bool:
     """Check if the current minute should trigger a blink."""
     return minute in BLINK_MINUTES
+
+
+def should_drink_water(now_et: datetime) -> bool:
+    """Check if it's time for a water reminder."""
+    return (
+        WATER_START_HOUR <= now_et.hour < WATER_END_HOUR
+        and now_et.minute % WATER_INTERVAL == 0
+    )
 
 
 class TuiClockApp(App):
@@ -71,14 +121,38 @@ class TuiClockApp(App):
         color: black;
     }
 
-    Screen.blink SecondaryDisplay {
+    Screen.blink #secondary-row {
         color: black;
+    }
+
+    Screen.water-alert {
+        background: cyan;
+    }
+
+    Screen.water-alert ClockDisplay {
+        color: black;
+    }
+
+    Screen.water-alert #secondary-row {
+        color: black;
+    }
+
+    Screen.water-alert WaterCounter {
+        color: black;
+        text-style: bold;
     }
 
     #clock-container {
         width: auto;
         height: auto;
         align: center middle;
+    }
+
+    WaterCounter {
+        width: 100%;
+        height: auto;
+        color: $text-muted;
+        padding-left: 1;
     }
 
     ClockDisplay {
@@ -89,10 +163,15 @@ class TuiClockApp(App):
         height: auto;
     }
 
-    SecondaryDisplay {
-        text-align: center;
-        color: $text-muted;
+    #secondary-row {
+        width: 100%;
+        height: auto;
         margin-top: 1;
+        align: center middle;
+    }
+
+    ETDisplay {
+        color: $text-muted;
         width: auto;
         height: auto;
     }
@@ -108,10 +187,27 @@ class TuiClockApp(App):
         super().__init__()
         self._last_blink_minute: int | None = None
         self._blink_count = 0
+        self._last_water_minute: int | None = None
+        self._water_blink_count = 0
+        self._water_stats = _load_water_stats()
+        self._water_count = self._water_stats["today_count"]
+        self._waiting_for_click = False
 
     def on_mount(self) -> None:
         """Start the blink check timer when app mounts."""
         self.set_interval(1.0, self._check_blink)
+        self.set_interval(1.0, self._check_water)
+        self.query_one(WaterCounter).update_count(self._water_count)
+
+    def on_click(self, event: Click) -> None:
+        """Handle click to acknowledge water reminder."""
+        if self._waiting_for_click:
+            self._waiting_for_click = False
+            self._water_count += 1
+            self._water_stats["today_count"] = self._water_count
+            _save_water_stats(self._water_stats)
+            self.screen.remove_class("water-alert")
+            self.query_one(WaterCounter).update_count(self._water_count)
 
     def _check_blink(self) -> None:
         """Check if we should trigger a blink at the current time."""
@@ -139,12 +235,46 @@ class TuiClockApp(App):
         if self._blink_count < BLINK_COUNT:
             self.set_timer(BLINK_DURATION, self._do_blink_on)
 
+    def _check_water(self) -> None:
+        """Check if we should trigger a water reminder."""
+        if self._waiting_for_click:
+            return
+        now_et = datetime.now(ET_TIMEZONE)
+        current_minute = now_et.hour * 60 + now_et.minute
+
+        if should_drink_water(now_et) and self._last_water_minute != current_minute:
+            self._last_water_minute = current_minute
+            self._start_water_blink()
+
+    def _start_water_blink(self) -> None:
+        """Start the water reminder blink, then stay lit until click."""
+        self._water_blink_count = 0
+        self._do_water_blink_on()
+
+    def _do_water_blink_on(self) -> None:
+        """Turn water blink on."""
+        self.screen.add_class("water-alert")
+        self.set_timer(WATER_BLINK_DURATION, self._do_water_blink_off)
+
+    def _do_water_blink_off(self) -> None:
+        """Turn water blink off."""
+        self.screen.remove_class("water-alert")
+        self._water_blink_count += 1
+        if self._water_blink_count < WATER_BLINK_COUNT:
+            self.set_timer(WATER_BLINK_DURATION, self._do_water_blink_on)
+        else:
+            # Done blinking — stay lit and wait for click
+            self.screen.add_class("water-alert")
+            self._waiting_for_click = True
+
     def compose(self) -> ComposeResult:
         """Compose the app layout."""
         with Container(id="clock-container"):
             with Vertical():
+                yield WaterCounter()
                 yield ClockDisplay()
-                yield SecondaryDisplay()
+                with Horizontal(id="secondary-row"):
+                    yield ETDisplay()
 
 
 def main() -> None:
