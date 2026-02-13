@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytz
 from textual.app import App, ComposeResult
-from textual.containers import Container, Horizontal, Vertical
+from textual.containers import Horizontal
 from textual.events import Click
 from textual.widgets import Static
 
@@ -109,7 +109,6 @@ class TuiClockApp(App):
 
     CSS = """
     Screen {
-        align: center middle;
         background: $surface;
     }
 
@@ -121,7 +120,7 @@ class TuiClockApp(App):
         color: black;
     }
 
-    Screen.blink #secondary-row {
+    Screen.blink #top-row {
         color: black;
     }
 
@@ -133,7 +132,7 @@ class TuiClockApp(App):
         color: black;
     }
 
-    Screen.water-alert #secondary-row {
+    Screen.water-alert #top-row {
         color: black;
     }
 
@@ -142,38 +141,34 @@ class TuiClockApp(App):
         text-style: bold;
     }
 
-    #clock-container {
-        width: auto;
-        height: auto;
-        align: center middle;
+    #top-row {
+        width: 100%;
+        height: 1;
+        color: $text-muted;
     }
 
     WaterCounter {
-        width: 100%;
-        height: auto;
-        color: $text-muted;
+        width: 1fr;
+        height: 1;
         padding-left: 1;
+    }
+
+    ETDisplay {
+        width: auto;
+        height: 1;
+        padding-right: 1;
     }
 
     ClockDisplay {
         text-align: center;
         color: $text;
         text-style: bold;
-        width: auto;
-        height: auto;
-    }
-
-    #secondary-row {
         width: 100%;
         height: auto;
-        margin-top: 1;
-        align: center middle;
     }
 
-    ETDisplay {
-        color: $text-muted;
-        width: auto;
-        height: auto;
+    #spacer {
+        height: 1;
     }
     """
 
@@ -269,12 +264,11 @@ class TuiClockApp(App):
 
     def compose(self) -> ComposeResult:
         """Compose the app layout."""
-        with Container(id="clock-container"):
-            with Vertical():
-                yield WaterCounter()
-                yield ClockDisplay()
-                with Horizontal(id="secondary-row"):
-                    yield ETDisplay()
+        with Horizontal(id="top-row"):
+            yield WaterCounter()
+            yield ETDisplay()
+        yield ClockDisplay()
+        yield Static("", id="spacer")
 
 
 def main() -> None:
