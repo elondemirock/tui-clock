@@ -24,8 +24,8 @@ BLINK_COUNT = 3  # Number of blink cycles
 
 # Water reminder configuration
 WATER_INTERVAL = 15  # Remind every 15 minutes
-WATER_START_HOUR = 8  # 8 AM ET
-WATER_END_HOUR = 18  # 6 PM ET
+WATER_START_HOUR = 8  # 8 AM PT
+WATER_END_HOUR = 18  # 6 PM PT
 WATER_BLINK_DURATION = 0.15
 WATER_BLINK_COUNT = 5
 
@@ -96,11 +96,11 @@ def should_blink(minute: int) -> bool:
     return minute in BLINK_MINUTES
 
 
-def should_drink_water(now_et: datetime) -> bool:
+def should_drink_water(now_pt: datetime) -> bool:
     """Check if it's time for a water reminder."""
     return (
-        WATER_START_HOUR <= now_et.hour < WATER_END_HOUR
-        and now_et.minute % WATER_INTERVAL == 0
+        WATER_START_HOUR <= now_pt.hour < WATER_END_HOUR
+        and now_pt.minute % WATER_INTERVAL == 0
     )
 
 
@@ -234,10 +234,10 @@ class TuiClockApp(App):
         """Check if we should trigger a water reminder."""
         if self._waiting_for_click:
             return
-        now_et = datetime.now(ET_TIMEZONE)
-        current_minute = now_et.hour * 60 + now_et.minute
+        now_pt = datetime.now(PT_TIMEZONE)
+        current_minute = now_pt.hour * 60 + now_pt.minute
 
-        if should_drink_water(now_et) and self._last_water_minute != current_minute:
+        if should_drink_water(now_pt) and self._last_water_minute != current_minute:
             self._last_water_minute = current_minute
             self._start_water_blink()
 
