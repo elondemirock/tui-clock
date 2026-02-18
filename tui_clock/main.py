@@ -232,6 +232,13 @@ class TuiClockApp(App):
 
     def _check_water(self) -> None:
         """Check if we should trigger a water reminder."""
+        # Reset counter if the day has changed while the app is running
+        today = datetime.now(ET_TIMEZONE).strftime("%Y-%m-%d")
+        if self._water_stats.get("today") != today:
+            self._water_stats = _load_water_stats()
+            self._water_count = self._water_stats["today_count"]
+            self.query_one(WaterCounter).update_count(self._water_count)
+
         if self._waiting_for_click:
             return
         now_pt = datetime.now(PT_TIMEZONE)
