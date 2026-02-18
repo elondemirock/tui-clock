@@ -10,3 +10,5 @@ Introducing the desktop clock:
 - Blinks every 30m to remind you of your mortality (also check your calendar there may be a meeting)
 - Goes full cyan-background to remind you to drink water every 15 minutes, you click to say "I drank water" - it counts those in .water_stats.
 
+![water reminder](clock-water-reminder.gif)
+
