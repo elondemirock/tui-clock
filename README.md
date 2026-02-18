@@ -5,10 +5,10 @@ Online options are outdated, just as bad.
 
 Introducing the desktop clock:
 
-![image](https://git.autodesk.com/demiroe/desktop-clock/assets/9565/a0c916d8-0dde-4169-be6a-6aceae08967b)
+<img src="https://git.autodesk.com/demiroe/desktop-clock/assets/9565/a0c916d8-0dde-4169-be6a-6aceae08967b" width="500">
 
 - Blinks every 30m to remind you of your mortality (also check your calendar there may be a meeting)
 - Goes full cyan-background to remind you to drink water every 15 minutes, you click to say "I drank water" - it counts those in .water_stats.
 
-![water reminder](clock-water-reminder.gif)
+<img src="clock-water-reminder.gif" width="500">
 
