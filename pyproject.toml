@@ -17,6 +17,9 @@ dev = [
 [project.scripts]
 tui-clock = "tui_clock.main:main"
 
+[tool.setuptools.packages.find]
+include = ["tui_clock*"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py312"
