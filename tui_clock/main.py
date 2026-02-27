@@ -220,6 +220,8 @@ class TuiClockApp(App):
 
     def _do_blink_on(self) -> None:
         """Turn blink on (inverted colors)."""
+        if self._waiting_for_click:
+            self.screen.remove_class("water-alert")
         self.screen.add_class("blink")
         self.set_timer(BLINK_DURATION, self._do_blink_off)
 
@@ -229,6 +231,8 @@ class TuiClockApp(App):
         self._blink_count += 1
         if self._blink_count < BLINK_COUNT:
             self.set_timer(BLINK_DURATION, self._do_blink_on)
+        elif self._waiting_for_click:
+            self.screen.add_class("water-alert")
 
     def _check_water(self) -> None:
         """Check if we should trigger a water reminder."""
