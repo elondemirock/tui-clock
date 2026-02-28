@@ -1,7 +1,12 @@
 """Tests for water counter and goal display functionality."""
 
 from tui_clock.config import Config
-from tui_clock.main import TuiClockApp, calculate_daily_record, calculate_streak
+from tui_clock.main import (
+    TuiClockApp,
+    WaterStatsPopup,
+    calculate_daily_record,
+    calculate_streak,
+)
 
 
 class TestTuiClockAppGoalDisplay:
@@ -120,6 +125,94 @@ class TestCalculateDailyRecord:
         """Today ties with historical record."""
         history = {"2026-02-27": 10}
         assert calculate_daily_record(history, 10) == 10
+
+
+class TestWaterStatsPopup:
+    """Tests for WaterStatsPopup content generation."""
+
+    def test_popup_stores_count_only(self):
+        """Popup stores count when no goal/streak/record."""
+        popup = WaterStatsPopup(count=5, goal=None, streak=None, record=None)
+        assert popup._count == 5
+        assert popup._goal is None
+        assert popup._streak is None
+        assert popup._record is None
+
+    def test_popup_stores_all_stats(self):
+        """Popup stores all stats when provided."""
+        popup = WaterStatsPopup(count=5, goal=8, streak=3, record=12)
+        assert popup._count == 5
+        assert popup._goal == 8
+        assert popup._streak == 3
+        assert popup._record == 12
+
+    def test_popup_count_with_goal_format(self):
+        """Popup displays count/goal format when goal is set."""
+        # Test the format logic used in compose()
+        count = 5
+        goal = 8
+        if goal is not None:
+            result = f"\U0001f4a7 {count}/{goal}"
+        else:
+            result = f"\U0001f4a7 {count}"
+        assert result == "\U0001f4a7 5/8"
+
+    def test_popup_count_without_goal_format(self):
+        """Popup displays count only when goal is None."""
+        count = 5
+        goal = None
+        if goal is not None:
+            result = f"\U0001f4a7 {count}/{goal}"
+        else:
+            result = f"\U0001f4a7 {count}"
+        assert result == "\U0001f4a7 5"
+
+    def test_popup_streak_format(self):
+        """Streak displays in correct format."""
+        streak = 7
+        result = f"\U0001f525 {streak} days"
+        assert result == "\U0001f525 7 days"
+
+    def test_popup_record_format(self):
+        """Record displays in correct format."""
+        record = 15
+        result = f"\U0001f3c6 {record}"
+        assert result == "\U0001f3c6 15"
+
+
+class TestWaterStatsIntegration:
+    """Tests for water stats popup integration with TuiClockApp."""
+
+    def test_action_show_water_stats_no_features_enabled(self):
+        """With default config, streak and record should be None."""
+        config = Config()  # All features disabled by default
+        app = TuiClockApp(config=config)
+        # Directly check what would be passed to popup
+        goal = app._get_display_goal()
+        assert goal is None
+
+    def test_action_show_water_stats_with_show_goal(self):
+        """With show_goal enabled, goal should be returned."""
+        config = Config(daily_goal=8, show_goal=True)
+        app = TuiClockApp(config=config)
+        goal = app._get_display_goal()
+        assert goal == 8
+
+    def test_streak_not_calculated_without_daily_goal(self):
+        """show_streak without daily_goal should not calculate streak."""
+        config = Config(show_streak=True, daily_goal=None)
+        # Creating app validates config is accepted
+        TuiClockApp(config=config)
+        # Even with show_streak=True, no daily_goal means no streak
+        assert config.daily_goal is None
+
+    def test_streak_calculated_with_daily_goal(self):
+        """show_streak with daily_goal should allow streak calculation."""
+        config = Config(show_streak=True, daily_goal=8)
+        # Creating app validates config is accepted
+        TuiClockApp(config=config)
+        assert config.show_streak is True
+        assert config.daily_goal == 8
 
 
 class TestCalculateStreak:

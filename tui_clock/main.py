@@ -6,8 +6,9 @@ from pathlib import Path
 
 import pytz
 from textual.app import App, ComposeResult
-from textual.containers import Horizontal
+from textual.containers import Horizontal, Vertical
 from textual.events import Click
+from textual.screen import ModalScreen
 from textual.widgets import Static
 
 from tui_clock.config import Config, load_config
@@ -29,6 +30,78 @@ WATER_START_HOUR = 8  # 8 AM PT
 WATER_END_HOUR = 18  # 6 PM PT
 WATER_BLINK_DURATION = 0.15
 WATER_BLINK_COUNT = 5
+
+
+class WaterStatsPopup(ModalScreen):
+    """Modal popup displaying water statistics."""
+
+    DEFAULT_CSS = """
+    WaterStatsPopup {
+        align: center middle;
+    }
+
+    WaterStatsPopup #stats-container {
+        width: auto;
+        height: auto;
+        min-width: 20;
+        padding: 1 2;
+        border: thick $background 80%;
+        background: $surface;
+    }
+
+    WaterStatsPopup .stat-line {
+        width: 100%;
+        height: 1;
+        text-align: center;
+    }
+    """
+
+    BINDINGS = [
+        ("escape", "dismiss", "Close"),
+        ("q", "dismiss", "Close"),
+    ]
+
+    def __init__(
+        self,
+        count: int,
+        goal: int | None,
+        streak: int | None,
+        record: int | None,
+    ) -> None:
+        """Initialize the popup with stats to display.
+
+        Args:
+            count: Current water intake count for today.
+            goal: Optional daily goal.
+            streak: Optional streak count (consecutive days meeting goal).
+            record: Optional record count (highest single-day intake).
+        """
+        super().__init__()
+        self._count = count
+        self._goal = goal
+        self._streak = streak
+        self._record = record
+
+    def compose(self) -> ComposeResult:
+        """Compose the popup layout."""
+        with Vertical(id="stats-container"):
+            # Water count (with or without goal)
+            if self._goal is not None:
+                yield Static(f"\U0001f4a7 {self._count}/{self._goal}", classes="stat-line")
+            else:
+                yield Static(f"\U0001f4a7 {self._count}", classes="stat-line")
+
+            # Streak (if enabled)
+            if self._streak is not None:
+                yield Static(f"\U0001f525 {self._streak} days", classes="stat-line")
+
+            # Record (if enabled)
+            if self._record is not None:
+                yield Static(f"\U0001f3c6 {self._record}", classes="stat-line")
+
+    def on_click(self, event: Click) -> None:
+        """Dismiss popup on any click."""
+        self.dismiss()
 
 
 class WaterCounter(Static):
@@ -249,6 +322,7 @@ class TuiClockApp(App):
     BINDINGS = [
         ("q", "quit", "Quit"),
         ("escape", "quit", "Quit"),
+        ("w", "show_water_stats", "Water Stats"),
     ]
 
     def __init__(self, config: Config | None = None) -> None:
@@ -268,6 +342,35 @@ class TuiClockApp(App):
         if self._config.show_goal and self._config.daily_goal is not None:
             return self._config.daily_goal
         return None
+
+    def action_show_water_stats(self) -> None:
+        """Show the water stats popup."""
+        # Calculate goal (only if show_goal is enabled)
+        goal = self._get_display_goal()
+
+        # Calculate streak (only if show_streak is enabled and daily_goal is set)
+        streak = None
+        if self._config.show_streak and self._config.daily_goal is not None:
+            today = datetime.now(ET_TIMEZONE).strftime("%Y-%m-%d")
+            history = self._water_stats.get("history", {})
+            streak = calculate_streak(
+                history, today, self._water_count, self._config.daily_goal
+            )
+
+        # Calculate record (only if show_record is enabled)
+        record = None
+        if self._config.show_record:
+            history = self._water_stats.get("history", {})
+            record = calculate_daily_record(history, self._water_count)
+
+        self.push_screen(
+            WaterStatsPopup(
+                count=self._water_count,
+                goal=goal,
+                streak=streak,
+                record=record,
+            )
+        )
 
     def on_mount(self) -> None:
         """Start the blink check timer when app mounts."""

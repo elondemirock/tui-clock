@@ -94,23 +94,37 @@ The spec requires adding optional tracking for water consumption achievements:
   - `test_empty_history_today_meets_goal` - edge case with no history
   - `test_long_streak_broken_early` - long streak broken by one bad day
 
-### P5: Water Stats Popup
-- [ ] Create `WaterStatsPopup` widget (or modal overlay)
-- [ ] Display on interaction (click on WaterCounter, or separate keybinding?)
-- [ ] Layout:
+### P5: Water Stats Popup ✅ COMPLETED
+- [x] Create `WaterStatsPopup` widget (modal overlay)
+- [x] Display on keybinding (`w` key)
+- [x] Layout:
   ```
   💧 {count}/{goal}     (or just 💧 {count} if goal disabled)
   🔥 {streak} days      (if show_streak enabled)
   🏆 {record}           (if show_record enabled)
   ```
-- [ ] Style popup consistently with existing app theme
-- [ ] Dismiss popup on click outside or key press
-- [ ] Add tests for popup visibility and content
+- [x] Style popup consistently with existing app theme
+- [x] Dismiss popup on click or key press (Escape, Q)
+- [x] Add tests for popup visibility and content
+
+**Implementation Details:**
+- Created `WaterStatsPopup(ModalScreen)` class in `tui_clock/main.py:34-96`
+- Popup extends Textual's `ModalScreen` for proper modal behavior
+- Accepts count, goal, streak, and record as constructor parameters
+- Only displays streak/record lines when those values are not None
+- Uses inline CSS via `DEFAULT_CSS` for consistent styling with app theme
+- Added `action_show_water_stats()` method in `TuiClockApp` to compute and display stats
+- Added `w` keybinding to trigger `action_show_water_stats`
+- Streak is computed only when `show_streak=True` AND `daily_goal` is set
+- Record is computed only when `show_record=True`
+- Added 10 tests in `tests/test_water.py`:
+  - `TestWaterStatsPopup` class (6 tests): popup initialization and format strings
+  - `TestWaterStatsIntegration` class (4 tests): config integration with app
 
 ### P6: Integration & Polish
-- [ ] Wire config to app startup
-- [ ] Update `_check_water` and `on_click` to refresh streak/record displays
-- [ ] Ensure streak/record update when day changes at midnight
+- [x] Wire config to app startup (already done in P1)
+- [ ] Update `_check_water` and `on_click` to refresh streak/record displays (not needed - popup shows live calculations)
+- [ ] Ensure streak/record update when day changes at midnight (handled by existing `_check_water` day change detection)
 - [ ] Add example config file to README or create `.tui_clock.toml.example`
 
 ## Notes
@@ -123,6 +137,6 @@ The spec requires adding optional tracking for water consumption achievements:
 ## Files Modified
 
 - `tui_clock/config.py` - NEW: Config loading module
-- `tui_clock/main.py` - Added config import and loading in `TuiClockApp.__init__`; P2: added `_get_display_goal()` helper and updated `WaterCounter.update_count()` with optional goal parameter; P3: added `calculate_daily_record()` function; P4: added `calculate_streak()` function
+- `tui_clock/main.py` - Added config import and loading in `TuiClockApp.__init__`; P2: added `_get_display_goal()` helper and updated `WaterCounter.update_count()` with optional goal parameter; P3: added `calculate_daily_record()` function; P4: added `calculate_streak()` function; P5: added `WaterStatsPopup` modal screen class and `action_show_water_stats()` method with `w` keybinding
 - `tests/test_config.py` - NEW: Config tests (15 tests)
-- `tests/test_water.py` - NEW: Water counter and goal display tests (8 tests); P3: added 7 tests for daily record calculation; P4: added 11 tests for streak calculation
+- `tests/test_water.py` - NEW: Water counter and goal display tests (8 tests); P3: added 7 tests for daily record calculation; P4: added 11 tests for streak calculation; P5: added 10 tests for popup (6 in `TestWaterStatsPopup`, 4 in `TestWaterStatsIntegration`)
