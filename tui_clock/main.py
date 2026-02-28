@@ -101,6 +101,22 @@ def _save_water_stats(data: dict) -> None:
     WATER_STATS_FILE.write_text(json.dumps(data, indent=2) + "\n")
 
 
+def calculate_daily_record(history: dict, today_count: int) -> int:
+    """Calculate the highest single-day water intake.
+
+    Args:
+        history: Dictionary mapping date strings to water counts.
+        today_count: Current day's water intake count.
+
+    Returns:
+        The maximum water count from history and today combined.
+    """
+    if not history:
+        return today_count
+    max_historical = max(history.values())
+    return max(max_historical, today_count)
+
+
 def should_blink(minute: int) -> bool:
     """Check if the current minute should trigger a blink."""
     return minute in BLINK_MINUTES

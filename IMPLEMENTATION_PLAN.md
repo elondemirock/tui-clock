@@ -45,12 +45,24 @@ The spec requires adding optional tracking for water consumption achievements:
   - `_get_display_goal()` behavior with various config combinations
   - Format string logic for count-only and count/goal display
 
-### P3: Daily Record Calculation
-- [ ] Add function `calculate_daily_record(history: dict, today_count: int) -> int`
+### P3: Daily Record Calculation ✅ COMPLETED
+- [x] Add function `calculate_daily_record(history: dict, today_count: int) -> int`
   - Compute max of all historical counts + today's count
   - History is already stored in `.water_stats["history"]` as `{date: count}`
-- [ ] No new persistence needed (computed from existing data)
-- [ ] Add tests for record calculation (empty history, single day, multiple days)
+- [x] No new persistence needed (computed from existing data)
+- [x] Add tests for record calculation (empty history, single day, multiple days)
+
+**Implementation Details:**
+- Added `calculate_daily_record(history: dict, today_count: int) -> int` function in `tui_clock/main.py:104-116`
+- Returns today_count if history is empty, otherwise returns max of historical values and today_count
+- Added 7 tests in `tests/test_water.py` class `TestCalculateDailyRecord`:
+  - `test_empty_history_returns_today_count` - empty history returns today's count
+  - `test_empty_history_with_zero_today` - empty history with zero returns 0
+  - `test_single_day_history_higher_than_today` - historical record higher than today
+  - `test_single_day_history_lower_than_today` - today beats historical record
+  - `test_multiple_days_history` - finds max across multiple days
+  - `test_today_beats_all_history` - today is new record
+  - `test_today_equals_historical_max` - today ties with historical record
 
 ### P4: Streak Calculation
 - [ ] Add function `calculate_streak(history: dict, today: str, today_count: int, goal: int) -> int`
@@ -91,6 +103,6 @@ The spec requires adding optional tracking for water consumption achievements:
 ## Files Modified
 
 - `tui_clock/config.py` - NEW: Config loading module
-- `tui_clock/main.py` - Added config import and loading in `TuiClockApp.__init__`; P2: added `_get_display_goal()` helper and updated `WaterCounter.update_count()` with optional goal parameter
+- `tui_clock/main.py` - Added config import and loading in `TuiClockApp.__init__`; P2: added `_get_display_goal()` helper and updated `WaterCounter.update_count()` with optional goal parameter; P3: added `calculate_daily_record()` function
 - `tests/test_config.py` - NEW: Config tests (15 tests)
-- `tests/test_water.py` - NEW: Water counter and goal display tests (8 tests)
+- `tests/test_water.py` - NEW: Water counter and goal display tests (8 tests); P3: added 7 tests for daily record calculation

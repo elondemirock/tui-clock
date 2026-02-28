@@ -1,7 +1,7 @@
 """Tests for water counter and goal display functionality."""
 
 from tui_clock.config import Config
-from tui_clock.main import TuiClockApp
+from tui_clock.main import TuiClockApp, calculate_daily_record
 
 
 class TestTuiClockAppGoalDisplay:
@@ -75,3 +75,48 @@ def test_format_water_display_count_exceeds_goal():
     else:
         result = f"\U0001f4a7 {count}"
     assert result == "\U0001f4a7 12/8"
+
+
+class TestCalculateDailyRecord:
+    """Tests for daily record calculation."""
+
+    def test_empty_history_returns_today_count(self):
+        """With no history, record is today's count."""
+        assert calculate_daily_record({}, 5) == 5
+
+    def test_empty_history_with_zero_today(self):
+        """With no history and zero today, record is 0."""
+        assert calculate_daily_record({}, 0) == 0
+
+    def test_single_day_history_higher_than_today(self):
+        """Record from history higher than today."""
+        history = {"2026-02-27": 10}
+        assert calculate_daily_record(history, 5) == 10
+
+    def test_single_day_history_lower_than_today(self):
+        """Today's count higher than historical record."""
+        history = {"2026-02-27": 3}
+        assert calculate_daily_record(history, 8) == 8
+
+    def test_multiple_days_history(self):
+        """Find max across multiple historical days."""
+        history = {
+            "2026-02-25": 4,
+            "2026-02-26": 12,
+            "2026-02-27": 7,
+        }
+        assert calculate_daily_record(history, 5) == 12
+
+    def test_today_beats_all_history(self):
+        """Today's count is new record."""
+        history = {
+            "2026-02-25": 4,
+            "2026-02-26": 8,
+            "2026-02-27": 6,
+        }
+        assert calculate_daily_record(history, 15) == 15
+
+    def test_today_equals_historical_max(self):
+        """Today ties with historical record."""
+        history = {"2026-02-27": 10}
+        assert calculate_daily_record(history, 10) == 10
