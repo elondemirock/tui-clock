@@ -117,6 +117,54 @@ def calculate_daily_record(history: dict, today_count: int) -> int:
     return max(max_historical, today_count)
 
 
+def calculate_streak(history: dict, today: str, today_count: int, goal: int) -> int:
+    """Calculate consecutive days meeting the daily goal.
+
+    Counts consecutive days ending at today (if today meets goal) or yesterday
+    where the water count meets or exceeds the goal. Gaps in dates break the streak.
+
+    Args:
+        history: Dictionary mapping date strings (YYYY-MM-DD) to water counts.
+        today: Today's date string in YYYY-MM-DD format.
+        today_count: Current day's water intake count.
+        goal: Daily water intake goal.
+
+    Returns:
+        The number of consecutive days meeting the goal (0 if no streak).
+    """
+    from datetime import timedelta
+
+    # Parse today's date
+    today_date = datetime.strptime(today, "%Y-%m-%d").date()
+
+    # Check if today meets the goal
+    today_meets_goal = today_count >= goal
+
+    streak = 0
+
+    if today_meets_goal:
+        # Start counting from today
+        streak = 1
+        current_date = today_date - timedelta(days=1)
+    else:
+        # Start counting from yesterday (today doesn't count)
+        current_date = today_date - timedelta(days=1)
+
+    # Walk backwards through consecutive days
+    while True:
+        date_str = current_date.strftime("%Y-%m-%d")
+        if date_str not in history:
+            # Gap in history breaks streak
+            break
+        if history[date_str] < goal:
+            # Day didn't meet goal, streak ends
+            break
+        streak += 1
+        current_date = current_date - timedelta(days=1)
+
+    return streak
+
+
 def should_blink(minute: int) -> bool:
     """Check if the current minute should trigger a blink."""
     return minute in BLINK_MINUTES

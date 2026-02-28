@@ -1,7 +1,7 @@
 """Tests for water counter and goal display functionality."""
 
 from tui_clock.config import Config
-from tui_clock.main import TuiClockApp, calculate_daily_record
+from tui_clock.main import TuiClockApp, calculate_daily_record, calculate_streak
 
 
 class TestTuiClockAppGoalDisplay:
@@ -120,3 +120,85 @@ class TestCalculateDailyRecord:
         """Today ties with historical record."""
         history = {"2026-02-27": 10}
         assert calculate_daily_record(history, 10) == 10
+
+
+class TestCalculateStreak:
+    """Tests for streak calculation."""
+
+    def test_no_streak_when_today_below_goal_and_no_history(self):
+        """No streak when today is below goal and no history."""
+        history = {}
+        assert calculate_streak(history, "2026-02-28", 3, 8) == 0
+
+    def test_streak_of_one_when_only_today_meets_goal(self):
+        """Streak is 1 when only today meets goal."""
+        history = {}
+        assert calculate_streak(history, "2026-02-28", 8, 8) == 1
+
+    def test_streak_continues_from_yesterday(self):
+        """Streak includes yesterday when both days meet goal."""
+        history = {"2026-02-27": 10}
+        assert calculate_streak(history, "2026-02-28", 8, 8) == 2
+
+    def test_streak_from_multiple_consecutive_days(self):
+        """Streak counts multiple consecutive days meeting goal."""
+        history = {
+            "2026-02-25": 9,
+            "2026-02-26": 10,
+            "2026-02-27": 8,
+        }
+        assert calculate_streak(history, "2026-02-28", 12, 8) == 4
+
+    def test_gap_in_dates_breaks_streak(self):
+        """Missing dates in history break the streak."""
+        history = {
+            "2026-02-25": 10,
+            # 2026-02-26 is missing
+            "2026-02-27": 10,
+        }
+        assert calculate_streak(history, "2026-02-28", 10, 8) == 2
+
+    def test_day_below_goal_breaks_streak(self):
+        """Day below goal breaks the streak."""
+        history = {
+            "2026-02-25": 10,
+            "2026-02-26": 5,  # Below goal
+            "2026-02-27": 10,
+        }
+        assert calculate_streak(history, "2026-02-28", 10, 8) == 2
+
+    def test_streak_from_yesterday_when_today_below_goal(self):
+        """Streak starts from yesterday when today doesn't meet goal."""
+        history = {
+            "2026-02-26": 10,
+            "2026-02-27": 9,
+        }
+        assert calculate_streak(history, "2026-02-28", 5, 8) == 2
+
+    def test_no_streak_when_yesterday_below_goal_and_today_below_goal(self):
+        """No streak when both today and yesterday are below goal."""
+        history = {"2026-02-27": 5}
+        assert calculate_streak(history, "2026-02-28", 3, 8) == 0
+
+    def test_today_exactly_at_goal_counts(self):
+        """Today exactly at goal counts toward streak."""
+        history = {"2026-02-27": 8}
+        assert calculate_streak(history, "2026-02-28", 8, 8) == 2
+
+    def test_empty_history_today_meets_goal(self):
+        """With empty history, streak is 1 if today meets goal."""
+        assert calculate_streak({}, "2026-02-28", 10, 8) == 1
+
+    def test_long_streak_broken_early(self):
+        """Long streak broken by a day below goal early on."""
+        history = {
+            "2026-02-20": 10,
+            "2026-02-21": 3,  # Below goal - breaks streak
+            "2026-02-22": 10,
+            "2026-02-23": 10,
+            "2026-02-24": 10,
+            "2026-02-25": 10,
+            "2026-02-26": 10,
+            "2026-02-27": 10,
+        }
+        assert calculate_streak(history, "2026-02-28", 10, 8) == 7
