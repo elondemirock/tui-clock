@@ -1,5 +1,13 @@
-- i want to build a tui clock that is re-sizeable as I drag the terminal size around.
-- i want it to simply display the time, as the main large center text in digital format, hh:mm for my timezone (PT)
-- i want it to then underneath have a much smaller sized text that tells me what hh+3 is so I can see what ET is.
-- make sure it runs cleanly when you create a fresh venv, or make a ./run.sh script that executes the necessary commands to run it from scratch
-- make it blink the terminal screen every 30m
+  Add optional tracking for water consumption achievements: daily record (highest single-day drink count) and
+  streak (consecutive days meeting a configurable goal).
+
+  Track consecutive days where the user meets their daily drink count goal - goal should be set by the user in a config file
+  Display in the water stats pop-up, underneath water emoji + count (use similar emoji + metric count format)
+  If enabled, water counter should should "x/y" where x is daily count and y is daily goal
+  
+  Also track the highest drink count logged in a single day, computed from existing history in .water_stats - no new persistence needed
+  Display in the water stats popup, underneath the streak display (if enabled)
+
+  Both features are opt-in (disabled by default)
+
+

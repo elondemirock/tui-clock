@@ -10,6 +10,7 @@ from textual.containers import Horizontal
 from textual.events import Click
 from textual.widgets import Static
 
+from tui_clock.config import Config, load_config
 from tui_clock.digits import render_time_large
 
 WATER_STATS_FILE = Path(__file__).resolve().parent.parent / ".water_stats"
@@ -177,9 +178,10 @@ class TuiClockApp(App):
         ("escape", "quit", "Quit"),
     ]
 
-    def __init__(self) -> None:
+    def __init__(self, config: Config | None = None) -> None:
         """Initialize the app with blink tracking state."""
         super().__init__()
+        self._config = config if config is not None else load_config()
         self._last_blink_minute: int | None = None
         self._blink_count = 0
         self._last_water_minute: int | None = None
