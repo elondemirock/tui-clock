@@ -34,8 +34,17 @@ WATER_BLINK_COUNT = 5
 class WaterCounter(Static):
     """Widget displaying the water counter at the top left."""
 
-    def update_count(self, count: int) -> None:
-        self.update(f"\U0001f4a7 {count}")
+    def update_count(self, count: int, goal: int | None = None) -> None:
+        """Update the water count display.
+
+        Args:
+            count: Current water intake count for today.
+            goal: Optional daily goal. If provided, displays as "count/goal".
+        """
+        if goal is not None:
+            self.update(f"\U0001f4a7 {count}/{goal}")
+        else:
+            self.update(f"\U0001f4a7 {count}")
 
 
 class ClockDisplay(Static):
@@ -190,11 +199,17 @@ class TuiClockApp(App):
         self._water_count = self._water_stats["today_count"]
         self._waiting_for_click = False
 
+    def _get_display_goal(self) -> int | None:
+        """Return the daily goal for display if show_goal is enabled."""
+        if self._config.show_goal and self._config.daily_goal is not None:
+            return self._config.daily_goal
+        return None
+
     def on_mount(self) -> None:
         """Start the blink check timer when app mounts."""
         self.set_interval(1.0, self._check_blink)
         self.set_interval(1.0, self._check_water)
-        self.query_one(WaterCounter).update_count(self._water_count)
+        self.query_one(WaterCounter).update_count(self._water_count, self._get_display_goal())
 
     def on_click(self, event: Click) -> None:
         """Handle click to acknowledge water reminder."""
@@ -204,7 +219,7 @@ class TuiClockApp(App):
             self._water_stats["today_count"] = self._water_count
             _save_water_stats(self._water_stats)
             self.screen.remove_class("water-alert")
-            self.query_one(WaterCounter).update_count(self._water_count)
+            self.query_one(WaterCounter).update_count(self._water_count, self._get_display_goal())
 
     def _check_blink(self) -> None:
         """Check if we should trigger a blink at the current time."""
@@ -243,7 +258,7 @@ class TuiClockApp(App):
         if self._water_stats.get("today") != today:
             self._water_stats = _load_water_stats()
             self._water_count = self._water_stats["today_count"]
-            self.query_one(WaterCounter).update_count(self._water_count)
+            self.query_one(WaterCounter).update_count(self._water_count, self._get_display_goal())
 
         if self._waiting_for_click:
             return

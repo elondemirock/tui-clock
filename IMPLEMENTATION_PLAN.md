@@ -31,11 +31,19 @@ The spec requires adding optional tracking for water consumption achievements:
 - `TuiClockApp.__init__` accepts optional `Config` parameter for testability
 - 15 tests in `tests/test_config.py` covering all scenarios
 
-### P2: Daily Goal Display ("x/y" Format)
-- [ ] Modify `WaterCounter.update_count()` to accept optional `goal` parameter
-- [ ] When `show_goal` is enabled, display `💧 {count}/{goal}` instead of `💧 {count}`
-- [ ] Update all call sites: `on_mount`, `on_click`, `_check_water`
-- [ ] Add tests for goal display format
+### P2: Daily Goal Display ("x/y" Format) ✅ COMPLETED
+- [x] Modify `WaterCounter.update_count()` to accept optional `goal` parameter
+- [x] When `show_goal` is enabled, display `💧 {count}/{goal}` instead of `💧 {count}`
+- [x] Update all call sites: `on_mount`, `on_click`, `_check_water`
+- [x] Add tests for goal display format
+
+**Implementation Details:**
+- Modified `WaterCounter.update_count(count, goal=None)` to accept optional goal parameter
+- Added `TuiClockApp._get_display_goal()` helper that returns goal when both `show_goal=True` AND `daily_goal` is set
+- Updated all 3 call sites (`on_mount`, `on_click`, `_check_water`) to pass goal parameter
+- Added 8 tests in `tests/test_water.py` covering:
+  - `_get_display_goal()` behavior with various config combinations
+  - Format string logic for count-only and count/goal display
 
 ### P3: Daily Record Calculation
 - [ ] Add function `calculate_daily_record(history: dict, today_count: int) -> int`
@@ -83,5 +91,6 @@ The spec requires adding optional tracking for water consumption achievements:
 ## Files Modified
 
 - `tui_clock/config.py` - NEW: Config loading module
-- `tui_clock/main.py` - Added config import and loading in `TuiClockApp.__init__`
+- `tui_clock/main.py` - Added config import and loading in `TuiClockApp.__init__`; P2: added `_get_display_goal()` helper and updated `WaterCounter.update_count()` with optional goal parameter
 - `tests/test_config.py` - NEW: Config tests (15 tests)
+- `tests/test_water.py` - NEW: Water counter and goal display tests (8 tests)
