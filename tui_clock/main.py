@@ -1,14 +1,13 @@
 """Main TUI clock application."""
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytz
 from textual.app import App, ComposeResult
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal
 from textual.events import Click
-from textual.screen import ModalScreen
 from textual.widgets import Static
 
 from tui_clock.config import Config, load_config
@@ -32,92 +31,21 @@ WATER_BLINK_DURATION = 0.15
 WATER_BLINK_COUNT = 5
 
 
-class WaterStatsPopup(ModalScreen):
-    """Modal popup displaying water statistics."""
-
-    DEFAULT_CSS = """
-    WaterStatsPopup {
-        align: center middle;
-    }
-
-    WaterStatsPopup #stats-container {
-        width: auto;
-        height: auto;
-        min-width: 20;
-        padding: 1 2;
-        border: thick $background 80%;
-        background: $surface;
-    }
-
-    WaterStatsPopup .stat-line {
-        width: 100%;
-        height: 1;
-        text-align: center;
-    }
-    """
-
-    BINDINGS = [
-        ("escape", "dismiss", "Close"),
-        ("q", "dismiss", "Close"),
-    ]
-
-    def __init__(
-        self,
-        count: int,
-        goal: int | None,
-        streak: int | None,
-        record: int | None,
-    ) -> None:
-        """Initialize the popup with stats to display.
-
-        Args:
-            count: Current water intake count for today.
-            goal: Optional daily goal.
-            streak: Optional streak count (consecutive days meeting goal).
-            record: Optional record count (highest single-day intake).
-        """
-        super().__init__()
-        self._count = count
-        self._goal = goal
-        self._streak = streak
-        self._record = record
-
-    def compose(self) -> ComposeResult:
-        """Compose the popup layout."""
-        with Vertical(id="stats-container"):
-            # Water count (with or without goal)
-            if self._goal is not None:
-                yield Static(f"\U0001f4a7 {self._count}/{self._goal}", classes="stat-line")
-            else:
-                yield Static(f"\U0001f4a7 {self._count}", classes="stat-line")
-
-            # Streak (if enabled)
-            if self._streak is not None:
-                yield Static(f"\U0001f525 {self._streak} days", classes="stat-line")
-
-            # Record (if enabled)
-            if self._record is not None:
-                yield Static(f"\U0001f3c6 {self._record}", classes="stat-line")
-
-    def on_click(self, event: Click) -> None:
-        """Dismiss popup on any click."""
-        self.dismiss()
-
-
 class WaterCounter(Static):
-    """Widget displaying the water counter at the top left."""
-
     def update_count(self, count: int, goal: int | None = None) -> None:
-        """Update the water count display.
+        self.update(f"\U0001f4a7 {count}/{goal}" if goal else f"\U0001f4a7 {count}")
 
-        Args:
-            count: Current water intake count for today.
-            goal: Optional daily goal. If provided, displays as "count/goal".
-        """
-        if goal is not None:
-            self.update(f"\U0001f4a7 {count}/{goal}")
-        else:
-            self.update(f"\U0001f4a7 {count}")
+
+class StreakDisplay(Static):
+    def update_streak(self, streak: int | None) -> None:
+        self.update(f"\U0001f525 {streak} days" if streak else "")
+        self.display = streak is not None
+
+
+class RecordDisplay(Static):
+    def update_record(self, record: int | None) -> None:
+        self.update(f"\U0001f3c6 {record}" if record else "")
+        self.display = record is not None
 
 
 class ClockDisplay(Static):
@@ -175,66 +103,18 @@ def _save_water_stats(data: dict) -> None:
 
 
 def calculate_daily_record(history: dict, today_count: int) -> int:
-    """Calculate the highest single-day water intake.
-
-    Args:
-        history: Dictionary mapping date strings to water counts.
-        today_count: Current day's water intake count.
-
-    Returns:
-        The maximum water count from history and today combined.
-    """
-    if not history:
-        return today_count
-    max_historical = max(history.values())
-    return max(max_historical, today_count)
+    """Return max water count from history and today."""
+    return max(max(history.values(), default=0), today_count)
 
 
 def calculate_streak(history: dict, today: str, today_count: int, goal: int) -> int:
-    """Calculate consecutive days meeting the daily goal.
-
-    Counts consecutive days ending at today (if today meets goal) or yesterday
-    where the water count meets or exceeds the goal. Gaps in dates break the streak.
-
-    Args:
-        history: Dictionary mapping date strings (YYYY-MM-DD) to water counts.
-        today: Today's date string in YYYY-MM-DD format.
-        today_count: Current day's water intake count.
-        goal: Daily water intake goal.
-
-    Returns:
-        The number of consecutive days meeting the goal (0 if no streak).
-    """
-    from datetime import timedelta
-
-    # Parse today's date
+    """Count consecutive days meeting goal, ending at today or yesterday."""
     today_date = datetime.strptime(today, "%Y-%m-%d").date()
-
-    # Check if today meets the goal
-    today_meets_goal = today_count >= goal
-
-    streak = 0
-
-    if today_meets_goal:
-        # Start counting from today
-        streak = 1
-        current_date = today_date - timedelta(days=1)
-    else:
-        # Start counting from yesterday (today doesn't count)
-        current_date = today_date - timedelta(days=1)
-
-    # Walk backwards through consecutive days
-    while True:
-        date_str = current_date.strftime("%Y-%m-%d")
-        if date_str not in history:
-            # Gap in history breaks streak
-            break
-        if history[date_str] < goal:
-            # Day didn't meet goal, streak ends
-            break
+    streak = 1 if today_count >= goal else 0
+    current_date = today_date - timedelta(days=1)
+    while (date_str := current_date.strftime("%Y-%m-%d")) in history and history[date_str] >= goal:
         streak += 1
-        current_date = current_date - timedelta(days=1)
-
+        current_date -= timedelta(days=1)
     return streak
 
 
@@ -259,34 +139,12 @@ class TuiClockApp(App):
         background: $surface;
     }
 
-    Screen.blink {
-        background: white;
-    }
+    Screen.blink { background: white; }
+    Screen.blink ClockDisplay, Screen.blink #top-row { color: black; }
 
-    Screen.blink ClockDisplay {
-        color: black;
-    }
-
-    Screen.blink #top-row {
-        color: black;
-    }
-
-    Screen.water-alert {
-        background: cyan;
-    }
-
-    Screen.water-alert ClockDisplay {
-        color: black;
-    }
-
-    Screen.water-alert #top-row {
-        color: black;
-    }
-
-    Screen.water-alert WaterCounter {
-        color: black;
-        text-style: bold;
-    }
+    Screen.water-alert { background: cyan; }
+    Screen.water-alert ClockDisplay, Screen.water-alert #top-row, Screen.water-alert StreakDisplay, Screen.water-alert RecordDisplay { color: black; }
+    Screen.water-alert WaterCounter { color: black; text-style: bold; }
 
     #top-row {
         width: 100%;
@@ -306,6 +164,8 @@ class TuiClockApp(App):
         padding-right: 1;
     }
 
+    StreakDisplay, RecordDisplay { width: 100%; height: 1; padding-left: 1; color: $text-muted; }
+
     ClockDisplay {
         text-align: center;
         color: $text;
@@ -322,7 +182,6 @@ class TuiClockApp(App):
     BINDINGS = [
         ("q", "quit", "Quit"),
         ("escape", "quit", "Quit"),
-        ("w", "show_water_stats", "Water Stats"),
     ]
 
     def __init__(self, config: Config | None = None) -> None:
@@ -338,45 +197,27 @@ class TuiClockApp(App):
         self._waiting_for_click = False
 
     def _get_display_goal(self) -> int | None:
-        """Return the daily goal for display if show_goal is enabled."""
-        if self._config.show_goal and self._config.daily_goal is not None:
-            return self._config.daily_goal
-        return None
+        return self._config.daily_goal if self._config.show_goal else None
 
-    def action_show_water_stats(self) -> None:
-        """Show the water stats popup."""
-        # Calculate goal (only if show_goal is enabled)
-        goal = self._get_display_goal()
+    def _get_display_streak(self) -> int | None:
+        if not (self._config.show_streak and self._config.daily_goal):
+            return None
+        today = datetime.now(ET_TIMEZONE).strftime("%Y-%m-%d")
+        return calculate_streak(self._water_stats.get("history", {}), today, self._water_count, self._config.daily_goal)
 
-        # Calculate streak (only if show_streak is enabled and daily_goal is set)
-        streak = None
-        if self._config.show_streak and self._config.daily_goal is not None:
-            today = datetime.now(ET_TIMEZONE).strftime("%Y-%m-%d")
-            history = self._water_stats.get("history", {})
-            streak = calculate_streak(
-                history, today, self._water_count, self._config.daily_goal
-            )
+    def _get_display_record(self) -> int | None:
+        return calculate_daily_record(self._water_stats.get("history", {}), self._water_count) if self._config.show_record else None
 
-        # Calculate record (only if show_record is enabled)
-        record = None
-        if self._config.show_record:
-            history = self._water_stats.get("history", {})
-            record = calculate_daily_record(history, self._water_count)
-
-        self.push_screen(
-            WaterStatsPopup(
-                count=self._water_count,
-                goal=goal,
-                streak=streak,
-                record=record,
-            )
-        )
+    def _refresh_water_displays(self) -> None:
+        self.query_one(WaterCounter).update_count(self._water_count, self._get_display_goal())
+        self.query_one(StreakDisplay).update_streak(self._get_display_streak())
+        self.query_one(RecordDisplay).update_record(self._get_display_record())
 
     def on_mount(self) -> None:
         """Start the blink check timer when app mounts."""
         self.set_interval(1.0, self._check_blink)
         self.set_interval(1.0, self._check_water)
-        self.query_one(WaterCounter).update_count(self._water_count, self._get_display_goal())
+        self._refresh_water_displays()
 
     def on_click(self, event: Click) -> None:
         """Handle click to acknowledge water reminder."""
@@ -386,7 +227,7 @@ class TuiClockApp(App):
             self._water_stats["today_count"] = self._water_count
             _save_water_stats(self._water_stats)
             self.screen.remove_class("water-alert")
-            self.query_one(WaterCounter).update_count(self._water_count, self._get_display_goal())
+            self._refresh_water_displays()
 
     def _check_blink(self) -> None:
         """Check if we should trigger a blink at the current time."""
@@ -425,7 +266,7 @@ class TuiClockApp(App):
         if self._water_stats.get("today") != today:
             self._water_stats = _load_water_stats()
             self._water_count = self._water_stats["today_count"]
-            self.query_one(WaterCounter).update_count(self._water_count, self._get_display_goal())
+            self._refresh_water_displays()
 
         if self._waiting_for_click:
             return
@@ -462,6 +303,8 @@ class TuiClockApp(App):
         with Horizontal(id="top-row"):
             yield WaterCounter()
             yield ETDisplay()
+        yield StreakDisplay()
+        yield RecordDisplay()
         yield ClockDisplay()
         yield Static("", id="spacer")
 

@@ -44,3 +44,6 @@ htmlcov/
 
 # Water stats
 .water_stats
+
+# Specs
+specs/default.md
