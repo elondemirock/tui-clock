@@ -38,13 +38,13 @@ class WaterCounter(Static):
 
 class StreakDisplay(Static):
     def update_streak(self, streak: int | None) -> None:
-        self.update(f"\U0001f525 {streak} days" if streak else "")
+        self.update(f"\U0001f525 {streak} days" if streak is not None else "")
         self.display = streak is not None
 
 
 class RecordDisplay(Static):
     def update_record(self, record: int | None) -> None:
-        self.update(f"\U0001f3c6 {record}" if record else "")
+        self.update(f"\U0001f3c6 {record}" if record is not None else "")
         self.display = record is not None
 
 
