@@ -1,0 +1,7 @@
+# tui-clock configuration
+# Copy to .tui_clock.toml (local) or ~/.config/tui-clock/config.toml (global)
+
+daily_goal = 8          # Water intake goal per day
+show_goal = true        # Show as "x/y" format
+show_streak = true      # Show consecutive days meeting goal
+show_record = true      # Show highest single-day count

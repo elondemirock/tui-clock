@@ -1,7 +1,7 @@
 """Main TUI clock application."""
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytz
@@ -10,6 +10,7 @@ from textual.containers import Horizontal
 from textual.events import Click
 from textual.widgets import Static
 
+from tui_clock.config import Config, load_config
 from tui_clock.digits import render_time_large
 
 WATER_STATS_FILE = Path(__file__).resolve().parent.parent / ".water_stats"
@@ -31,10 +32,20 @@ WATER_BLINK_COUNT = 5
 
 
 class WaterCounter(Static):
-    """Widget displaying the water counter at the top left."""
+    def update_count(self, count: int, goal: int | None = None) -> None:
+        self.update(f"\U0001f4a7 {count}/{goal}" if goal else f"\U0001f4a7 {count}")
 
-    def update_count(self, count: int) -> None:
-        self.update(f"\U0001f4a7 {count}")
+
+class StreakDisplay(Static):
+    def update_streak(self, streak: int | None) -> None:
+        self.update(f"\U0001f525 {streak} days" if streak is not None else "")
+        self.display = streak is not None
+
+
+class RecordDisplay(Static):
+    def update_record(self, record: int | None) -> None:
+        self.update(f"\U0001f3c6 {record}" if record is not None else "")
+        self.display = record is not None
 
 
 class ClockDisplay(Static):
@@ -91,6 +102,22 @@ def _save_water_stats(data: dict) -> None:
     WATER_STATS_FILE.write_text(json.dumps(data, indent=2) + "\n")
 
 
+def calculate_daily_record(history: dict, today_count: int) -> int:
+    """Return max water count from history and today."""
+    return max(max(history.values(), default=0), today_count)
+
+
+def calculate_streak(history: dict, today: str, today_count: int, goal: int) -> int:
+    """Count consecutive days meeting goal, ending at today or yesterday."""
+    today_date = datetime.strptime(today, "%Y-%m-%d").date()
+    streak = 1 if today_count >= goal else 0
+    current_date = today_date - timedelta(days=1)
+    while (date_str := current_date.strftime("%Y-%m-%d")) in history and history[date_str] >= goal:
+        streak += 1
+        current_date -= timedelta(days=1)
+    return streak
+
+
 def should_blink(minute: int) -> bool:
     """Check if the current minute should trigger a blink."""
     return minute in BLINK_MINUTES
@@ -112,34 +139,12 @@ class TuiClockApp(App):
         background: $surface;
     }
 
-    Screen.blink {
-        background: white;
-    }
+    Screen.blink { background: white; }
+    Screen.blink ClockDisplay, Screen.blink #top-row { color: black; }
 
-    Screen.blink ClockDisplay {
-        color: black;
-    }
-
-    Screen.blink #top-row {
-        color: black;
-    }
-
-    Screen.water-alert {
-        background: cyan;
-    }
-
-    Screen.water-alert ClockDisplay {
-        color: black;
-    }
-
-    Screen.water-alert #top-row {
-        color: black;
-    }
-
-    Screen.water-alert WaterCounter {
-        color: black;
-        text-style: bold;
-    }
+    Screen.water-alert { background: cyan; }
+    Screen.water-alert ClockDisplay, Screen.water-alert #top-row, Screen.water-alert StreakDisplay, Screen.water-alert RecordDisplay { color: black; }
+    Screen.water-alert WaterCounter { color: black; text-style: bold; }
 
     #top-row {
         width: 100%;
@@ -159,6 +164,8 @@ class TuiClockApp(App):
         padding-right: 1;
     }
 
+    StreakDisplay, RecordDisplay { width: 100%; height: 1; padding-left: 1; color: $text-muted; }
+
     ClockDisplay {
         text-align: center;
         color: $text;
@@ -177,9 +184,10 @@ class TuiClockApp(App):
         ("escape", "quit", "Quit"),
     ]
 
-    def __init__(self) -> None:
+    def __init__(self, config: Config | None = None) -> None:
         """Initialize the app with blink tracking state."""
         super().__init__()
+        self._config = config if config is not None else load_config()
         self._last_blink_minute: int | None = None
         self._blink_count = 0
         self._last_water_minute: int | None = None
@@ -188,11 +196,28 @@ class TuiClockApp(App):
         self._water_count = self._water_stats["today_count"]
         self._waiting_for_click = False
 
+    def _get_display_goal(self) -> int | None:
+        return self._config.daily_goal if self._config.show_goal else None
+
+    def _get_display_streak(self) -> int | None:
+        if not (self._config.show_streak and self._config.daily_goal):
+            return None
+        today = datetime.now(ET_TIMEZONE).strftime("%Y-%m-%d")
+        return calculate_streak(self._water_stats.get("history", {}), today, self._water_count, self._config.daily_goal)
+
+    def _get_display_record(self) -> int | None:
+        return calculate_daily_record(self._water_stats.get("history", {}), self._water_count) if self._config.show_record else None
+
+    def _refresh_water_displays(self) -> None:
+        self.query_one(WaterCounter).update_count(self._water_count, self._get_display_goal())
+        self.query_one(StreakDisplay).update_streak(self._get_display_streak())
+        self.query_one(RecordDisplay).update_record(self._get_display_record())
+
     def on_mount(self) -> None:
         """Start the blink check timer when app mounts."""
         self.set_interval(1.0, self._check_blink)
         self.set_interval(1.0, self._check_water)
-        self.query_one(WaterCounter).update_count(self._water_count)
+        self._refresh_water_displays()
 
     def on_click(self, event: Click) -> None:
         """Handle click to acknowledge water reminder."""
@@ -202,7 +227,7 @@ class TuiClockApp(App):
             self._water_stats["today_count"] = self._water_count
             _save_water_stats(self._water_stats)
             self.screen.remove_class("water-alert")
-            self.query_one(WaterCounter).update_count(self._water_count)
+            self._refresh_water_displays()
 
     def _check_blink(self) -> None:
         """Check if we should trigger a blink at the current time."""
@@ -241,7 +266,7 @@ class TuiClockApp(App):
         if self._water_stats.get("today") != today:
             self._water_stats = _load_water_stats()
             self._water_count = self._water_stats["today_count"]
-            self.query_one(WaterCounter).update_count(self._water_count)
+            self._refresh_water_displays()
 
         if self._waiting_for_click:
             return
@@ -278,6 +303,8 @@ class TuiClockApp(App):
         with Horizontal(id="top-row"):
             yield WaterCounter()
             yield ETDisplay()
+        yield StreakDisplay()
+        yield RecordDisplay()
         yield ClockDisplay()
         yield Static("", id="spacer")
 
